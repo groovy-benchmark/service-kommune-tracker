@@ -1,0 +1,524 @@
+openapi: 3.0.0
+info:
+  title: Serviceportal Tracking Server API
+  version: 1.0-SNAPSHOT
+  description: >-
+    This document describes the Serviceportal Tracking Server API.
+    A service useful for tracking various events in Serviceportal processes and to generate various
+    reports about these events.
+  contact:
+    name: "SEITENBAU Public Service Team"
+    url: "https://www.seitenbau.com/was-wir-koennen/public-service-design"
+    email: "public-service@seitenbau.com"
+servers:
+  - url: "/"
+    description: "THIS server"
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+  responses:
+    BadRequest:
+      description: "Required parameters are missing or not in correct format"
+    AuthenticationFailed:
+      description: "`Authorization` header not provided, username wrong or password wrong"
+    AuthorizationFailed:
+      description: "User is not authorized to access this `processId`"
+    NotAdmin:
+      description: "User does not have admin rights."
+  parameters:
+    processId:
+      name: processId
+      in: path
+      required: true
+      description: >
+        Unique identifier for a process.
+        Can be chosen freely, but should be the same for the same process.
+      schema:
+        type: string
+      example: karlsruhe-mietpreisrechner
+    eventId:
+      name: eventId
+      in: path
+      required: true
+      description: >
+        Unique identifier for a step in a model.
+        Can be chosen freely, but should be the same for the same process.
+      schema:
+        type: string
+      example: before-filling-form
+    processInstanceId:
+      name: processInstanceId
+      in: query
+      required: true
+      description: >
+        Unique identifier for a concrete process instance.
+        Can be read from the process instance variable `processInstanceId`<br>
+        **WARNING:** People with access to the system database might be able to
+        get personal identifiable information from that.
+        You need to ensure that this doesn't happen, or include that fact in your privacy statement
+      schema:
+        type: integer
+      example: 15460988
+    userId:
+      name: userId
+      in: query
+      required: false
+      description: >
+        Unique identifier for a user, to allow tracking across different process instances.
+        Can be read from the process instance variable `startedBy`<br>
+        **WARNING:** People with access to the admin center will be able to get the e-mail address
+        for a given userId.
+        As you most likely cannot prevent that you should consider not providing that parameter
+        for data privacy reasons.
+      schema:
+        type: string
+      examples:
+        With a user ID:
+          value: "userId:123"
+        With a session ID:
+          value: "sessionId:456"
+    timeFrom:
+      name: timeFrom
+      in: query
+      required: false
+      description: >
+        A UNIX timestamp marking the point in time when events are included in the result (inclusive).
+        If missing, all events are included (as long as they are not filtered by another parameter)
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 2147483647
+    timeUntil:
+      name: timeUntil
+      in: query
+      required: false
+      description: >
+        A UNIX timestamp marking the point in time when events are no longer included in the result.
+        If missing, all events are included (as long as they are not filtered by another parameter)
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 2147483647
+  schemas:
+    User:
+      type: object
+      properties:
+        username:
+          type: string
+        creationDate:
+          type: string
+          description: "A unix timestamp when the users account was created"
+        creationDateHuman:
+          type: string
+          description: "A human readable timestamp"
+          example: "2021-08-06 13:42:55.0"
+        creationDateRelative:
+          type: string
+          description: "A human readable, relative time"
+          example: "3 weeks ago"
+        isAdmin:
+          type: boolean
+          description: "A boolean flag showing if that user has admin rights"
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/parameters/processId'
+security:
+  - BasicAuth: [ ]
+paths:
+  "/api/v1.0":
+    get:
+      summary: Get Documentation
+      security: [ ]
+      responses:
+        200:
+          description: Get the documentation you are reading right now, as a HTML file with embedded Swagger UI rendering
+          content:
+            text/html:
+              example: <some HTML/>
+  "/api/v1.0/processes/{processId}/events/{eventId}":
+    post:
+      summary: Track an event
+      security: [ ] # None required!
+      tags:
+        - Tracking events
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/eventId'
+        - $ref: '#/components/parameters/processInstanceId'
+        - $ref: '#/components/parameters/userId'
+      responses:
+        201:
+          description: "The event was successfully added to the database"
+        400:
+          $ref: '#/components/responses/BadRequest'
+  "/api/v1.0/processes/{processId}/events/{eventId}/sum":
+    get:
+      summary: Get sum of tracked events for given event
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/eventId'
+        - $ref: '#/components/parameters/timeFrom'
+        - $ref: '#/components/parameters/timeUntil'
+      tags:
+        - Getting infos about events
+      responses:
+        200:
+          description: "Event found, but possibly 0 tracks"
+          content:
+            application/json:
+              schema:
+                type: integer
+                minimum: 0
+                example: 5
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/AuthorizationFailed'
+  "/api/v1.0/processes/{processId}/sums":
+    get:
+      summary: Get sums of all events for given process
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/timeFrom'
+        - $ref: '#/components/parameters/timeUntil'
+      tags:
+        - Getting infos about events
+      responses:
+        200:
+          description: All tracked events and how often that event was tracked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  count:
+                    type: integer
+                required:
+                  - eventId
+                  - count
+                example:
+                  before-filling-form: 521
+                  after-filling-form: 140
+
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/AuthorizationFailed'
+  "/api/v1.0/processes/{processId}":
+    get:
+      summary: Get all details about tracked events for a given process
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/timeFrom'
+        - $ref: '#/components/parameters/timeUntil'
+      tags:
+        - Getting infos about events
+      responses:
+        200:
+          description: All details about all tracked events. **Warning - that might be a big file!**
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp:
+                      type: integer
+                    eventId:
+                      type: string
+                    processInstanceId:
+                      type: integer
+                    userId:
+                      type: string
+                      nullable: true
+                  required:
+                    - timestamp
+                    - eventId
+                    - processInstanceId
+                    - userId
+              example:
+                - timestamp: 1576505586
+                  eventId: before-filling-form
+                  processInstanceId: '15460988'
+                  userId: 'userId:123'
+                - timestamp: 1576505423
+                  eventId: before-showing-to-gemeinderat
+                  processInstanceId: '12344455'
+                  userId: null
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/AuthorizationFailed'
+  "/api/v1.0/processes/{processId}/flow/html":
+    get:
+      summary: Get a HTML page displaying a sankey diagram of the process's flow
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/timeFrom'
+        - $ref: '#/components/parameters/timeUntil'
+      tags:
+        - Getting infos about events
+      responses:
+        200:
+          description: >-
+            A HTML page, embedding a <a target="_blank" rel="noopener noreferrer" 
+            href="https://github.com/ricklupton/d3-sankey-diagram">d3-sankey-diagram</a> and the
+            data from the /api/v1.0/processes/{processId}/flow/json endpoint.<br>
+            The result looks similar to this image:<br>
+            <img alt="Sankey Diagram of a process" src="/api/v1.0/static/sankey_example.png">
+          content:
+            text/html:
+              example: <some HTML/>
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/AuthorizationFailed'
+  "/api/v1.0/processes/{processId}/flow/json":
+    get:
+      summary: Get details about how users flow through the different events of a process
+      parameters:
+        - $ref: '#/components/parameters/processId'
+        - $ref: '#/components/parameters/timeFrom'
+        - $ref: '#/components/parameters/timeUntil'
+      tags:
+        - Getting infos about events
+      responses:
+        200:
+          description: >-
+            All tracked events (called "nodes") and the flows between them (called "links") in a 
+            format that can be consumed by <a target="_blank" rel="noopener noreferrer" 
+            href="https://github.com/ricklupton/d3-sankey-diagram">d3-sankey-diagram</a>.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    description: "A list of all tracked events"
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: "The name of a specific tracked event"
+                          example: "myInitEvent"
+                  links:
+                    type: array
+                    description: "A list of all flows from a specific start event to a specific end event"
+                    items:
+                      type: object
+                      properties:
+                        source:
+                          type: string
+                          example: "myInitEvent"
+                        target:
+                          type: string
+                          example: "myFollowingEvent"
+                        value:
+                          type: integer
+                          description: "The amount of users that passed through this flow"
+                          example: 5
+                        color:
+                          type: string
+                          description: >-
+                            A semi-random (depending on the name of the start and end event)
+                            rgb-color, each color between 50 and 150. Used by d3-sankey-diagram to
+                            render the graph.
+                          example: "rgb(159, 181, 193)"
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/AuthorizationFailed'
+  "/api/v1.0/processes":
+    get:
+      summary: Get list of all processes
+      tags:
+        - Administration
+      responses:
+        200:
+          description: A list of all processes ids and some high-level details about them
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    processId:
+                      type: string
+                      description: Unique identifier for a process.
+                    usersWithAccess:
+                      type: array
+                      items:
+                        type: string
+                    numberOfTrackedEvents:
+                      type: number
+                    firstTrackedEventRelative:
+                      type: string
+                      description: A human-readable relative timestamp of the first tracked event
+                    lastTrackedEventRelative:
+                      type: string
+                      description: A human-readable relative timestamp of the latest tracked event
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/NotAdmin'
+  "/api/v1.0/admin/users":
+    get:
+      summary: Get list of all users
+      tags:
+        - Administration
+      responses:
+        200:
+          description: A list of all users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/NotAdmin'
+    post:
+      summary: Add a new user
+      tags:
+        - Administration
+      parameters:
+        - name: username
+          in: query
+          required: true
+          description: The login identifier of the new user
+          schema:
+            type: string
+          example: maxmustermann.musterstadt
+        - name: passwordCleartext
+          in: query
+          required: true
+          description: >
+            The password the user will use to authenticate (in cleartext, the server will
+            bcrypt the password before storing in the the database)
+          schema:
+            type: string
+        - name: isAdmin
+          in: query
+          required: false
+          description: Flag if the user should get admin privileges or not
+          schema:
+            type: boolean
+            default: false
+      responses:
+        201:
+          description: User sucessfully created
+        400:
+          description: User cannot be created because the supplied data was not understood.
+        409:
+          description: User cannot be created as they already exist.
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/NotAdmin'
+  "/api/v1.0/admin/users/{username}":
+    get:
+      summary: Get details about a specific user
+      tags:
+        - Administration
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: >
+            Unique identifier for a user
+          schema:
+            type: string
+          example: john.doe
+      responses:
+        200:
+          description: Details about this user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/NotAdmin'
+        404:
+          description: User with supplied username does not exist
+    patch:
+      summary: Change details about a specific user
+      tags:
+        - Administration
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: >
+            Unique identifier for a user
+          schema:
+            type: string
+          example: john.doe
+        - name: newPassword
+          in: query
+          required: false
+          description: The new password the user will use to authenticate (in cleartext, the server will
+            bcrypt the password before storing in the the database)
+          schema:
+            type: string
+        - name: isAdmin
+          in: query
+          required: false
+          description: Flag if the user should get admin privileges or if they should be removed.
+          schema:
+            type: boolean
+        - name: addPermission
+          in: query
+          required: false
+          description: The name of a process that user shall be granted access to.
+          schema:
+            type: string
+            example: "karlsruhe-mietpreisrechner"
+        - name: removePermission
+          in: query
+          required: false
+          description: The name of a process that user currently has access to, that should be removed
+          schema:
+            type: string
+            example: "karlsruhe-mietpreisrechner"
+      responses:
+        200:
+          description: Changes were sucessfull. Response contains log of changes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Success"
+                  changes:
+                    type: array
+                    items:
+                      type: string
+                      description: "A log of the change."
+                      example: "Password was updated."
+        401:
+          $ref: '#/components/responses/AuthenticationFailed'
+        403:
+          $ref: '#/components/responses/NotAdmin'
+        404:
+          description: User with supplied username does not exist

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Prozessflow für PLACEHOLDER_PROCESS_ID - Serviceportal Tracking Server</title>
+  <style>
+    html {
+      overflow-x: hidden;
+    }
+
+    body {
+      background-color: #eeeeee;
+      margin: 0 auto 4em auto;
+      width: 1024px;
+      color: #333;
+    }
+
+    h1 {
+      font-weight: normal;
+      font-size: 2.5em;
+    }
+
+    h2 {
+      margin-top: 2.5em;
+    }
+
+    a {
+      color: #4078c0;
+      text-decoration: none;
+    }
+
+    a:hover, a:active {
+      text-decoration: underline;
+    }
+
+    .sankey {
+      background-color: white;
+      border-radius: 7px;
+      position: relative;
+    }
+
+    .sankey {
+      background-color: white;
+      border-radius: 7px;
+      position: relative;
+    }
+
+    #sankey {
+      height: 600px;
+    }
+
+    .source {
+      margin: 0.5em;
+      font-size: small;
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      color: #555;
+    }
+
+    .source a {
+      color: #558;
+    }
+
+    svg .link {
+      opacity: 0.8;
+      fill: steelblue;
+    }
+
+    svg .link:hover {
+      opacity: 1;
+    }
+
+    svg g.sankey {
+      font-size: 10pt;
+    }
+    svg .node line {
+      stroke-width: 1px;
+      stroke: #000;
+    }
+    svg .node-type-process line {
+      stroke-width: 4px;
+      stroke: #888;
+    }
+
+    svg .group rect {
+      fill: #eee;
+      stroke: #bbb;
+      stroke-width: 0.5px;
+    }
+
+    svg .group text {
+      fill: #999;
+    }
+  </style>
+</head>
+<body>
+<h1>Prozessflow für "PLACEHOLDER_PROCESS_ID"</h1>
+
+<div id="sankey" class="sankey">
+  <svg width="1000" height="600"></svg>
+  <p class="source">Erstellt mit <a href="https://github.com/ricklupton/d3-sankey-diagram">d3-sankey-diagram</a>.
+    <a href="https://github.com/ricklupton/d3-sankey-diagram/blob/master/LICENSE">MIT Licence</a>.
+  </p>
+</div>
+
+<script src="//d3js.org/d3.v4.min.js" charset="utf-8"></script>
+<script src="/api/v1.0/static/d3-sankey.js" charset="utf-8"></script>
+<script>
+    var layout = d3.sankey()
+                  .extent([[100, 10], [840, 580]]);
+
+    var diagram = d3.sankeyDiagram()
+                  .linkColor(function(d) { return d.color; });
+
+    d3.json('jsonPLACEHOLDER_TIME_PARAMS', function(datapoint) {
+      //layout.ordering(datapoint.order);
+      var el = d3.select('#sankey svg')
+                .datum(layout(datapoint))
+                .call(diagram.groups(datapoint.groups));
+    });
+</script>
+</body>
+</html>

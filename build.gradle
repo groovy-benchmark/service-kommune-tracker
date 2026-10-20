@@ -1,0 +1,60 @@
+group 'de.servicekommune'
+version '1.0-SNAPSHOT'
+
+buildscript {
+  repositories {
+    jcenter()
+    gradlePluginPortal()
+  }
+  dependencies {
+    classpath "io.ratpack:ratpack-gradle:1.9.0"
+    classpath 'com.github.jengelman.gradle.plugins:shadow:6.1.0'
+    // creating fat jars with all dependencies
+    classpath "com.github.ben-manes:gradle-versions-plugin:0.39.0"
+    // Check for dependencies, adds task "dependencyUpdates"
+  }
+}
+
+apply plugin: "io.ratpack.ratpack-groovy"
+apply plugin: "idea"
+apply plugin: 'groovy'
+apply plugin: 'com.github.johnrengelman.shadow' // creating fat jars with all dependencies
+apply plugin: "com.github.ben-manes.versions"
+
+repositories {
+  jcenter()
+}
+
+dependencies {
+  // database
+  implementation 'org.mariadb.jdbc:mariadb-java-client:2.7.3'
+  implementation 'org.flywaydb:flyway-core:7.12.0' // DB migrations / upgrades to schemas via Flyway
+  testImplementation 'com.h2database:h2:1.4.200' // In memory DB for tests
+
+  // password hashing
+  implementation 'org.mindrot:jbcrypt:0.4'
+
+  // relative time
+  implementation group: 'org.ocpsoft.prettytime', name: 'prettytime', version: '5.0.1.Final'
+
+  // testing
+  testImplementation 'org.spockframework:spock-core:2.0-groovy-2.5'
+
+  // logging
+  implementation "org.slf4j:slf4j-simple:1.7.32"
+}
+
+// Show test results in console
+test {
+  testLogging {
+    events "passed", "skipped", "failed"
+  }
+  useJUnitPlatform()
+}
+
+// Output fat jar to build/libs/sk-tracker-with-dependencies.jar
+shadowJar {
+  archiveBaseName.set('sk-tracker-with-dependencies')
+  archiveClassifier.set('')
+  archiveVersion.set('')
+}
